@@ -13,7 +13,7 @@ object StarkClient {
     private const val HOST = "127.0.0.1"
     private const val PORT = 8080
 
-    suspend fun requestPlan(command: String): JSONObject? = withContext(Dispatchers.IO) {
+    suspend fun requestPlan(sessionId: String, command: String, cwd: String = "/data/data/com.termux/files/home"): JSONObject? = withContext(Dispatchers.IO) {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(HOST, PORT), 10000)
@@ -22,23 +22,18 @@ object StarkClient {
 
             val payload = JSONObject().apply {
                 put("action", "PLAN")
+                put("session_id", sessionId)
                 put("command", command)
+                put("cwd", cwd)
             }
             out.println(payload.toString())
-            val response = reader.readLine()
+            val res = reader.readLine()
             socket.close()
-
-            if (response != null) JSONObject(response) else null
-        } catch (e: Exception) {
-            null
-        }
+            if (res != null) JSONObject(res) else null
+        } catch (e: Exception) { null }
     }
 
-    suspend fun executePtyStream(
-        taskId: String,
-        script: String,
-        onChunk: suspend (String) -> Unit
-    ) = withContext(Dispatchers.IO) {
+    suspend fun executePtyStream(taskId: String, script: String, cwd: String = "/data/data/com.termux/files/home", onChunk: suspend (String) -> Unit) = withContext(Dispatchers.IO) {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(HOST, PORT), 8000)
@@ -49,19 +44,19 @@ object StarkClient {
                 put("action", "EXECUTE")
                 put("task_id", taskId)
                 put("script", script)
+                put("cwd", cwd)
             }
             out.println(payload.toString())
 
             val buffer = ByteArray(1024)
-            var bytesRead: Int
-            while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                val chunk = String(buffer, 0, bytesRead, Charsets.UTF_8)
-                onChunk(chunk)
+            var read: Int
+            while (inStream.read(buffer).also { read = it } != -1) {
+                onChunk(String(buffer, 0, read, Charsets.UTF_8))
             }
             socket.close()
             onChunk("\n[✓ Process Completed]")
         } catch (e: Exception) {
-            onChunk("\n[x Socket Closed: ${e.message}]")
+            onChunk("\n[x Socket Error: ${e.message}]")
         }
     }
 
@@ -69,32 +64,26 @@ object StarkClient {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(HOST, PORT), 3000)
-            val out = PrintWriter(socket.getOutputStream(), true)
-            out.println(JSONObject().apply {
+            PrintWriter(socket.getOutputStream(), true).println(JSONObject().apply {
                 put("action", "STDIN")
                 put("task_id", taskId)
                 put("input", input)
             }.toString())
             socket.close()
             true
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false }
     }
 
     suspend fun killRunningProcess(taskId: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(HOST, PORT), 3000)
-            val out = PrintWriter(socket.getOutputStream(), true)
-            out.println(JSONObject().apply {
+            PrintWriter(socket.getOutputStream(), true).println(JSONObject().apply {
                 put("action", "KILL")
                 put("task_id", taskId)
             }.toString())
             socket.close()
             true
-        } catch (e: Exception) {
-            false
-        }
+        } catch (e: Exception) { false }
     }
 }
