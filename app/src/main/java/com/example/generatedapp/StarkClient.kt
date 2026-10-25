@@ -13,7 +13,11 @@ object StarkClient {
     private const val HOST = "127.0.0.1"
     private const val PORT = 8080
 
-    suspend fun requestPlan(sessionId: String, command: String, cwd: String = "/data/data/com.termux/files/home"): JSONObject? = withContext(Dispatchers.IO) {
+    suspend fun requestPlan(
+        sessionId: String = "default",
+        command: String,
+        cwd: String = "/data/data/com.termux/files/home"
+    ): JSONObject? = withContext(Dispatchers.IO) {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(HOST, PORT), 10000)
@@ -33,7 +37,12 @@ object StarkClient {
         } catch (e: Exception) { null }
     }
 
-    suspend fun executePtyStream(taskId: String, script: String, cwd: String = "/data/data/com.termux/files/home", onChunk: suspend (String) -> Unit) = withContext(Dispatchers.IO) {
+    suspend fun executePtyStream(
+        taskId: String,
+        script: String,
+        cwd: String = "/data/data/com.termux/files/home",
+        onChunk: suspend (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(HOST, PORT), 8000)
