@@ -11,7 +11,7 @@ import java.net.Socket
 
 object StarkClient {
     private const val HOST = "127.0.0.1"
-    private const val PORT = 8080
+    private const val PORT = 9999
 
     suspend fun requestPlan(
         sessionId: String = "default",
