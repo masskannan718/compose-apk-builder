@@ -68,7 +68,6 @@ class ConsoleMessage(
     val isBoss: Boolean = false,
     val tacticalData: TacticalPayload? = null
 ) {
-    // Jetpack Compose Recomposition-ஐ நேரடியாகத் தூண்டும் State variables
     var terminalLogs by mutableStateOf("")
     var isExecuting by mutableStateOf(false)
 }
@@ -279,8 +278,11 @@ fun StarkMasterConsoleUI(
                     withContext(Dispatchers.Main) {
                         val updated = msg.terminalLogs + chunk
                         val lines = updated.lines()
-                        // 150-வரி ரிங் பப்பர்
-                        msg.terminalLogs = if (lines.size > 150) lines.takeLast(150).joinToString("\n") else updated
+                        if (lines.size > 150) {
+                            msg.terminalLogs = lines.takeLast(150).joinToString("\n")
+                        } else {
+                            msg.terminalLogs = updated
+                        }
                     }
                 }
                 socket.close()
