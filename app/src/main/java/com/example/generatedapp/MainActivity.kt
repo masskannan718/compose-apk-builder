@@ -122,8 +122,8 @@ fun FitnessDashboard() {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val path = Path()
                     path.moveTo(0f, size.height * 0.8f)
-                    path.quadraticTo(size.width * 0.25f, size.height * 0.2f, size.width * 0.5f, size.height * 0.6f)
-                    path.quadraticTo(size.width * 0.75f, size.height * 0.9f, size.width, size.height * 0.3f)
+                    path.quadraticBezierTo(size.width * 0.25f, size.height * 0.2f, size.width * 0.5f, size.height * 0.6f)
+                    path.quadraticBezierTo(size.width * 0.75f, size.height * 0.9f, size.width, size.height * 0.3f)
                     drawPath(
                         path = path,
                         color = Color(0xFFFF6D00),
