@@ -61,7 +61,24 @@ object StarkClient {
             socket.close()
             onChunk("\n[✓ Process Completed]")
         } catch (e: Exception) {
-            onChunk("\n[x Socket Error: ${e.message}]")
+            onChunk("\n[x Socket Closed: ${e.message}]")
+        }
+    }
+
+    suspend fun sendStdin(taskId: String, input: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val socket = Socket()
+            socket.connect(InetSocketAddress(HOST, PORT), 3000)
+            val out = PrintWriter(socket.getOutputStream(), true)
+            out.println(JSONObject().apply {
+                put("action", "STDIN")
+                put("task_id", taskId)
+                put("input", input)
+            }.toString())
+            socket.close()
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
