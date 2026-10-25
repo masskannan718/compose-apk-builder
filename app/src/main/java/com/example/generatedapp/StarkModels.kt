@@ -21,7 +21,7 @@ data class ConsoleMessage(
     val tacticalData: TacticalPayload? = null,
     val terminalLogs: String = "",
     val isExecuting: Boolean = false,
-    val isLiked: Boolean? = null, // true = like, false = dislike, null = none
+    val isLiked: Boolean? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
