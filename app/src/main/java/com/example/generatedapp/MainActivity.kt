@@ -4,15 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,13 +53,13 @@ fun FitnessDashboard() {
             color = MaterialTheme.colorScheme.primary
         )
 
-        // Step Counter Circle
+        // Step Counter Circle - Compatible float parameter
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(180.dp)
         ) {
             CircularProgressIndicator(
-                progress = { 0.75f },
+                progress = 0.75f,
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = 14.dp,
                 color = MaterialTheme.colorScheme.primary,
@@ -102,7 +100,7 @@ fun FitnessDashboard() {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "🔥 Calories", fontSize = 16.sp)
+                    Text(text = "Calories", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(text = "Burned", fontSize = 14.sp, color = Color.Gray)
                     Text(text = "520 kcal", fontSize = 20.sp, fontWeight = FontWeight.Bold)
