@@ -22,13 +22,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,15 +64,14 @@ data class TacticalPayload(
     val isDestructive: Boolean
 )
 
-class ConsoleMessage(
+data class ConsoleMessage(
     val sender: String,
     val text: String = "",
     val isBoss: Boolean = false,
-    val tacticalData: TacticalPayload? = null
-) {
-    var terminalLogs by mutableStateOf("")
-    var isExecuting by mutableStateOf(false)
-}
+    val tacticalData: TacticalPayload? = null,
+    val terminalLogs: String = "",
+    val isExecuting: Boolean = false
+)
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
@@ -168,7 +169,7 @@ fun StarkMasterConsoleUI(
             messages.add(
                 ConsoleMessage(
                     sender = "JARVIS",
-                    text = "வணக்கம் பாஸ்! ஸ்டார்க் மிஷன் கண்ட்ரோல் நேரலை PTY டெர்மினலுடன் தயார் நிலையில் உள்ளது."
+                    text = "வணக்கம் பாஸ்! ஸ்டார்க் மிஷன் கண்ட்ரோல் 6 ஏஜென்ட்கள் & நேரலை PTY டெர்மினலுடன் தயார் நிலையில் உள்ளது."
                 )
             )
         }
@@ -253,9 +254,11 @@ fun StarkMasterConsoleUI(
         }
     }
 
-    fun executeTerminalTask(msg: ConsoleMessage, script: String, taskId: String) {
-        msg.isExecuting = true
-        msg.terminalLogs = "> Initializing PTY Shell...\n$ $script\n"
+    fun executeTerminalTask(index: Int, script: String, taskId: String) {
+        messages[index] = messages[index].copy(
+            isExecuting = true,
+            terminalLogs = "> Initializing PTY Shell...\n$ $script\n"
+        )
 
         coroutineScope.launch(Dispatchers.IO) {
             try {
@@ -276,30 +279,27 @@ fun StarkMasterConsoleUI(
                 while (inStream.read(buffer).also { bytesRead = it } != -1) {
                     val chunk = String(buffer, 0, bytesRead, Charsets.UTF_8)
                     withContext(Dispatchers.Main) {
-                        val updated = msg.terminalLogs + chunk
-                        val lines = updated.lines()
-                        if (lines.size > 150) {
-                            msg.terminalLogs = lines.takeLast(150).joinToString("\n")
-                        } else {
-                            msg.terminalLogs = updated
-                        }
+                        val currentLogs = messages[index].terminalLogs + chunk
+                        val lines = currentLogs.lines()
+                        val trimmed = if (lines.size > 150) lines.takeLast(150).joinToString("\n") else currentLogs
+                        messages[index] = messages[index].copy(terminalLogs = trimmed)
                     }
                 }
                 socket.close()
                 withContext(Dispatchers.Main) {
-                    msg.isExecuting = false
-                    msg.terminalLogs += "\n[✓ Process Completed]"
+                    val finalLogs = messages[index].terminalLogs + "\n[✓ Process Completed]"
+                    messages[index] = messages[index].copy(isExecuting = false, terminalLogs = finalLogs)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    msg.isExecuting = false
-                    msg.terminalLogs += "\n[x Execution Error: ${e.message}]"
+                    val errLogs = messages[index].terminalLogs + "\n[x Execution Error: ${e.message}]"
+                    messages[index] = messages[index].copy(isExecuting = false, terminalLogs = errLogs)
                 }
             }
         }
     }
 
-    fun killTask(msg: ConsoleMessage, taskId: String) {
+    fun killTask(index: Int, taskId: String) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val s = Socket()
@@ -311,8 +311,8 @@ fun StarkMasterConsoleUI(
                 }.toString())
                 s.close()
                 withContext(Dispatchers.Main) {
-                    msg.isExecuting = false
-                    msg.terminalLogs += "\n[⏹ Process Terminated by Boss - SIGKILL]"
+                    val killedLogs = messages[index].terminalLogs + "\n[⏹ Process Terminated by Boss - SIGKILL]"
+                    messages[index] = messages[index].copy(isExecuting = false, terminalLogs = killedLogs)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -452,12 +452,12 @@ fun StarkMasterConsoleUI(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(messages) { msg ->
+                itemsIndexed(messages) { index, msg ->
                     if (msg.tacticalData != null) {
                         TacticalCardView(
                             msg = msg,
-                            onExecute = { script -> executeTerminalTask(msg, script, msg.tacticalData.taskId) },
-                            onKill = { killTask(msg, msg.tacticalData.taskId) },
+                            onExecute = { script -> executeTerminalTask(index, script, msg.tacticalData.taskId) },
+                            onKill = { killTask(index, msg.tacticalData.taskId) },
                             onSpeak = { text -> onSpeakToggle(text) },
                             isSpeaking = isSpeaking
                         )
