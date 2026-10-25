@@ -1,10 +1,8 @@
 package com.example.generatedapp
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
@@ -31,7 +29,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -201,7 +198,10 @@ fun StarkConsoleRoot(onSpeak: (String) -> Unit) {
                     withContext(Dispatchers.Main) {
                         val currentLogs = messages[index].terminalLogs + chunk
                         val lines = currentLogs.lines()
-                        val trimmed = if (lines.size > 150) lines.takeLast(150).joinToString("\n") else currentLogs
+                        var trimmed = currentLogs
+                        if (lines.size > 150) {
+                            trimmed = lines.takeLast(150).joinToString("\n")
+                        }
                         messages[index] = messages[index].copy(terminalLogs = trimmed)
                     }
                 }
