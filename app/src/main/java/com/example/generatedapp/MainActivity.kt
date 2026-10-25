@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +42,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -48,7 +51,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.Locale
 
-data class ModelEngine(val id: String, val displayName: String, val badge: String, val type: String)
+data class ModelEngine(val id: String, val displayName: String, val badge: String)
 
 data class ChatMessage(
     val sender: String,
@@ -85,7 +88,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ta-IN")
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "தமிழில் கட்டளையிடுங்கள் பாஸ்...")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "தமிழில் கட்டளையிடவும் பாஸ்...")
         }
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {}
@@ -122,11 +125,12 @@ fun GeminiMasterScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val prefs: SharedPreferences = remember { context.getSharedPreferences("council_vault", Context.MODE_PRIVATE) }
 
     val availableModels = listOf(
-        ModelEngine("council-groq", "Stark Council", "Cloud 70B", "Cloud"),
-        ModelEngine("puyal-local", "Puyal Core (Offline)", "Edge 1.5B", "Local"),
-        ModelEngine("custom-host", "Host Slot 3 (Custom)", "Private", "Host")
+        ModelEngine("council-groq", "Stark Council", "Uncensored Cloud"),
+        ModelEngine("puyal-local", "Puyal Core", "Local Edge"),
+        ModelEngine("custom-host", "Host Slot 3", "Dedicated")
     )
 
     var currentModel by remember { mutableStateOf(availableModels[0]) }
@@ -141,11 +145,46 @@ fun GeminiMasterScreen(
     var serverStatus by remember { mutableStateOf("Checking...") }
     var attachedFileUri by remember { mutableStateOf<String?>(null) }
 
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage("JARVIS", "வணக்கம் பாஸ்! ஸ்டார்க் கன்சோல் மல்டி-மாடல் எஞ்சின் இணைக்கப்பட்டுள்ளது.", modelTag = "Council"),
-            ChatMessage("FRIDAY", "தேவைக்கேற்ப கிளவுட் கவுன்சில், ஆஃப்லைன் புயல் அல்லது கஸ்டம் லோக்கல் ஹோஸ்ட்டை மாற்றிக்கொள்ளலாம்.", modelTag = "System")
-        )
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+
+    // Load Chat History
+    LaunchedEffect(Unit) {
+        val saved = prefs.getString("chat_history", null)
+        if (!saved.isNullOrEmpty()) {
+            try {
+                val arr = JSONArray(saved)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    messages.add(
+                        ChatMessage(
+                            sender = obj.getString("sender"),
+                            text = obj.getString("text"),
+                            isBoss = obj.getBoolean("isBoss"),
+                            modelTag = obj.optString("modelTag", null)
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                messages.add(ChatMessage("JARVIS", "வணக்கம் பாஸ்! கவுன்சில் மாஸ்டர் சிஸ்டம் தயார்."))
+            }
+        } else {
+            messages.add(ChatMessage("JARVIS", "வணக்கம் பாஸ்! கவுன்சில் மாஸ்டர் சிஸ்டம் தயார்."))
+        }
+    }
+
+    // Save Chat History Helper
+    fun saveHistory() {
+        val arr = JSONArray()
+        messages.takeLast(50).forEach { msg ->
+            val obj = JSONObject().apply {
+                put("sender", msg.sender)
+                put("text", msg.text)
+                put("isBoss", msg.isBoss)
+                put("modelTag", msg.modelTag ?: "")
+            }
+            arr.put(obj)
+        }
+        prefs.edit().putString("chat_history", arr.toString()).apply()
     }
 
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -168,7 +207,7 @@ fun GeminiMasterScreen(
                 s.close()
                 serverStatus = "Online [✓] (போர்ட் 8080 தயார் நிலையில் உள்ளது)"
             } catch (e: Exception) {
-                serverStatus = "Offline [x] (காரணம்: Termux சர்வர் இயங்கவில்லை அல்லது போர்ட் முடக்கப்பட்டுள்ளது)"
+                serverStatus = "Offline [x] (காரணம்: Termux சர்வர் இயங்கவில்லை)"
             }
         }
     }
@@ -176,8 +215,9 @@ fun GeminiMasterScreen(
     fun sendMessage(textToSend: String) {
         if (textToSend.isBlank() && attachedFileUri == null) return
         val dispatchText = if (attachedFileUri != null) "[$attachedFileUri] $textToSend" else textToSend
-        
+
         messages.add(ChatMessage("BOSS", dispatchText, isBoss = true))
+        saveHistory()
         inputText = ""
         val tempAttached = attachedFileUri
         attachedFileUri = null
@@ -186,7 +226,7 @@ fun GeminiMasterScreen(
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val socket = Socket()
-                socket.connect(InetSocketAddress("127.0.0.1", 8080), 6000)
+                socket.connect(InetSocketAddress("127.0.0.1", 8080), 8000)
                 val out = PrintWriter(socket.getOutputStream(), true)
                 val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
 
@@ -206,11 +246,12 @@ fun GeminiMasterScreen(
                     if (resp != null) {
                         val json = JSONObject(resp)
                         val reply = json.optString("reply", "")
-                        val agent = json.optString("agent", currentModel.displayName)
+                        val agent = json.optString("agent", "COUNCIL")
                         messages.add(ChatMessage(agent, reply, modelTag = currentModel.badge))
                     } else {
-                        messages.add(ChatMessage("DUM-E", "பதில் பெறப்படவில்லை.", errorReason = "சாக்கெட் சிக்னல் கிடைத்தது, ஆனால் சர்வர் தரவுகளை அனுப்பாமல் மூடிவிட்டது."))
+                        messages.add(ChatMessage("DUM-E", "பதில் வரவில்லை.", errorReason = "சாக்கெட் சிக்னல் மூடிவிட்டது."))
                     }
+                    saveHistory()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -219,9 +260,10 @@ fun GeminiMasterScreen(
                         ChatMessage(
                             "DUM-E",
                             "கட்டளையை இயக்க முடியவில்லை பாஸ்!",
-                            errorReason = "நெட்வொர்க் பிழை (${e.javaClass.simpleName}): 127.0.0.1:8080 உடன் இணைக்க முடியவில்லை. Termux சர்வர் ரன் ஆகிறதா என்று பார்க்கவும்."
+                            errorReason = "நெட்வொர்க் பிழை: ${e.message}"
                         )
                     )
+                    saveHistory()
                 }
             }
         }
@@ -238,7 +280,7 @@ fun GeminiMasterScreen(
                                     Text(currentModel.displayName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                     Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.White)
                                 }
-                                Text("Thinking: $thinkingMode • ${currentModel.badge}", color = Color(0xFF38BDF8), fontSize = 11.sp)
+                                Text("${currentModel.badge} • Thinking: $thinkingMode", color = Color(0xFF38BDF8), fontSize = 11.sp)
                             }
                         }
                         DropdownMenu(
@@ -249,41 +291,19 @@ fun GeminiMasterScreen(
                             Text("செயல்திறன் எஞ்சின்கள்", color = Color(0xFF94A3B8), fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                             availableModels.forEach { model ->
                                 DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(model.displayName, color = if (model.id == currentModel.id) Color(0xFF38BDF8) else Color.White)
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Surface(
-                                                color = Color(0xFF334155),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(model.badge, color = Color(0xFF94A3B8), fontSize = 10.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
-                                            }
-                                        }
-                                    },
-                                    onClick = {
-                                        currentModel = model
-                                        showModelMenu = false
-                                    }
+                                    text = { Text(model.displayName, color = if (model.id == currentModel.id) Color(0xFF38BDF8) else Color.White) },
+                                    onClick = { currentModel = model; showModelMenu = false }
                                 )
                             }
-                            Divider(color = Color(0xFF334155), modifier = Modifier.padding(vertical = 4.dp))
-                            Text("சிந்தனை வேகம் (Thinking)", color = Color(0xFF94A3B8), fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                            listOf("Off (Fast)", "Normal", "Deep Council").forEach { mode ->
+                            Divider(color = Color(0xFF334155))
+                            Text("சிந்தனை வேகம்", color = Color(0xFF94A3B8), fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                            listOf("Off (Direct)", "Normal", "Deep Council").forEach { mode ->
                                 DropdownMenuItem(
                                     text = { Text(mode, color = if (thinkingMode == mode) Color(0xFFA855F7) else Color.White) },
-                                    onClick = {
-                                        thinkingMode = mode
-                                        showModelMenu = false
-                                    }
+                                    onClick = { thinkingMode = mode; showModelMenu = false }
                                 )
                             }
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { Toast.makeText(context, "சேட் விவரங்கள் விரைவில்...", Toast.LENGTH_SHORT).show() }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Drawer", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A)),
@@ -298,17 +318,14 @@ fun GeminiMasterScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text("🛠️ DUM-E மெக்கானிக்", color = Color.White) },
-                            onClick = {
-                                showTopMenu = false
-                                checkDumeStatus()
-                                showDumeDialog = true
-                            }
+                            onClick = { showTopMenu = false; checkDumeStatus(); showDumeDialog = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("🧹 திரையை அழிக்க (Clear)", color = Color.White) },
+                            text = { Text("🧹 ஹிஸ்டரியை அழிக்க (Clear)", color = Color.White) },
                             onClick = {
                                 showTopMenu = false
                                 messages.clear()
+                                prefs.edit().remove("chat_history").apply()
                             }
                         )
                     }
@@ -319,11 +336,7 @@ fun GeminiMasterScreen(
             Column(modifier = Modifier.background(Color(0xFF0F172A))) {
                 AnimatedVisibility(visible = attachedFileUri != null) {
                     Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF334155))
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF334155)).padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.AttachFile, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
@@ -353,7 +366,7 @@ fun GeminiMasterScreen(
                         TextField(
                             value = inputText,
                             onValueChange = { inputText = it },
-                            placeholder = { Text("கட்டளையிடவும்...", color = Color(0xFF64748B), fontSize = 14.sp) },
+                            placeholder = { Text("கட்டளையிடுங்கள் பாஸ்...", color = Color(0xFF64748B), fontSize = 14.sp) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -399,7 +412,7 @@ fun GeminiMasterScreen(
                     Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF38BDF8), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text("${currentModel.displayName} பகுப்பாய்வு செய்கிறது ($thinkingMode)...", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                        Text("${currentModel.displayName} பகுப்பாய்வு செய்கிறது...", color = Color(0xFF94A3B8), fontSize = 12.sp)
                     }
                 }
             }
@@ -409,7 +422,7 @@ fun GeminiMasterScreen(
     if (showBottomSheet) {
         ModalBottomSheet(onDismissRequest = { showBottomSheet = false }, containerColor = Color(0xFF1E293B)) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                Text("இணைப்பு மூலங்கள் (Attachments)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("இணைப்பு மூலங்கள்", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { fileLauncher.launch("image/*") }) {
@@ -478,10 +491,11 @@ fun GeminiMessageItem(msg: ChatMessage, onSpeak: () -> Unit, onRegenerate: () ->
         Surface(
             color = if (msg.isBoss) Color(0xFF1E3A8A) else Color(0xFF1E293B),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.widthIn(max = 320.dp)
+            modifier = Modifier.widthIn(max = 330.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(text = msg.text, color = Color(0xFFF1F5F9), fontSize = 14.sp)
+                // Parse and render Code blocks if present
+                RenderMessageContent(msg.text, context)
 
                 if (msg.errorReason != null) {
                     Spacer(modifier = Modifier.height(6.dp))
@@ -522,6 +536,59 @@ fun GeminiMessageItem(msg: ChatMessage, onSpeak: () -> Unit, onRegenerate: () ->
                     Icons.Default.Refresh, contentDescription = "Regenerate", tint = Color(0xFF94A3B8),
                     modifier = Modifier.size(18.dp).clickable { onRegenerate() }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun RenderMessageContent(rawText: String, context: Context) {
+    // Splits by markdown code blocks ```
+    val parts = rawText.split("```")
+    for (i in parts.indices) {
+        val part = parts[i]
+        if (i % 2 == 1) {
+            // This is a Code block
+            val lines = part.trim().lines()
+            val codeContent = if (lines.size > 1) lines.drop(1).joinToString("\n") else part.trim()
+            
+            Surface(
+                color = Color(0xFF090D16),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("CODE", color = Color(0xFF64748B), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Copy Code",
+                            color = Color(0xFF38BDF8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Extracted Code", codeContent))
+                                Toast.makeText(context, "கோட் நகலெடுக்கப்பட்டது!", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = codeContent,
+                        color = Color(0xFF34D399),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        } else {
+            // Normal text
+            if (part.isNotBlank()) {
+                Text(text = part.trim(), color = Color(0xFFF1F5F9), fontSize = 14.sp)
             }
         }
     }
