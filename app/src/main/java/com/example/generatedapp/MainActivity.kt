@@ -5,7 +5,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognitionListener
@@ -43,7 +42,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -64,15 +62,16 @@ data class TacticalPayload(
     val isDestructive: Boolean
 )
 
-data class ConsoleMessage(
+class ConsoleMessage(
     val sender: String,
     val text: String = "",
     val isBoss: Boolean = false,
-    val tacticalData: TacticalPayload? = null,
-    var terminalLogs: String = "",
-    var isExecuting: Boolean = false,
-    var isTerminated: Boolean = false
-)
+    val tacticalData: TacticalPayload? = null
+) {
+    // Jetpack Compose Recomposition-ஐ நேரடியாகத் தூண்டும் State variables
+    var terminalLogs by mutableStateOf("")
+    var isExecuting by mutableStateOf(false)
+}
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
@@ -156,7 +155,6 @@ fun StarkMasterConsoleUI(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val prefs: SharedPreferences = remember { context.getSharedPreferences("stark_vault", Context.MODE_PRIVATE) }
 
     var inputText by remember { mutableStateOf("") }
     var isPlanning by remember { mutableStateOf(false) }
@@ -166,13 +164,12 @@ fun StarkMasterConsoleUI(
 
     val messages = remember { mutableStateListOf<ConsoleMessage>() }
 
-    // Init Welcome
     LaunchedEffect(Unit) {
         if (messages.isEmpty()) {
             messages.add(
                 ConsoleMessage(
                     sender = "JARVIS",
-                    text = "வணக்கம் பாஸ்! ஸ்டார்க் மிஷன் கண்ட்ரோல் கன்சோல் 6 ஏஜென்ட்கள் பாதுகாப்புடன் தயார் நிலையில் உள்ளது."
+                    text = "வணக்கம் பாஸ்! ஸ்டார்க் மிஷன் கண்ட்ரோல் நேரலை PTY டெர்மினலுடன் தயார் நிலையில் உள்ளது."
                 )
             )
         }
@@ -189,7 +186,7 @@ fun StarkMasterConsoleUI(
                 val s = Socket()
                 s.connect(InetSocketAddress("127.0.0.1", 8080), 2000)
                 s.close()
-                dumeInfo = "🤖 DUM-E பின்னணி மெக்கானிக்:\n\n• போர்ட் 8080: இணைப்பில் உள்ளது [✓]\n• PTY Bridge: தயார் [✓]\n• லோக்கல் சாக்கெட்: இயங்குகிறது [✓]\n• பின்னணி சேவைகள் சீராக உள்ளன பாஸ்!"
+                dumeInfo = "🤖 DUM-E பின்னணி மெக்கானிக்:\n\n• போர்ட் 8080: இணைப்பில் உள்ளது [✓]\n• PTY Bridge: ஆன்லைன் [✓]\n• சாக்கெட் ஸ்ட்ரீமிங்: தயார் [✓]"
             } catch (e: Exception) {
                 dumeInfo = "🤖 DUM-E எச்சரிக்கை:\n\n• போர்ட் 8080 ஆஃப்லைன்!\n• Termux-ல் stark_core_server.py இயங்கவில்லை."
             }
@@ -205,7 +202,7 @@ fun StarkMasterConsoleUI(
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val socket = Socket()
-                socket.connect(InetSocketAddress("127.0.0.1", 8080), 10000)
+                socket.connect(InetSocketAddress("127.0.0.1", 8080), 12000)
                 val out = PrintWriter(socket.getOutputStream(), true)
                 val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
 
@@ -227,10 +224,10 @@ fun StarkMasterConsoleUI(
                             val patchObj = json.optJSONObject("patches") ?: JSONObject()
 
                             val tactical = TacticalPayload(
-                                taskId = json.optString("task_id", "task_01"),
-                                jarvisBrief = json.optString("jarvis_brief", "பிளான் தயார்."),
+                                taskId = json.optString("task_id", "task_${System.currentTimeMillis()}"),
+                                jarvisBrief = json.optString("jarvis_brief", "திட்டம் தயார்."),
                                 ultronSeverity = auditObj.optString("severity", "SAFE"),
-                                ultronFlaw = auditObj.optString("flaw", "குறைபாடுகள் இல்லை."),
+                                ultronFlaw = auditObj.optString("flaw", "சிக்கல்கள் இல்லை."),
                                 ultronImpact = auditObj.optString("impact", "பாதிப்பில்லை."),
                                 safePatch = patchObj.optString("safe_patch", cmd),
                                 forceBypass = patchObj.optString("force_bypass", cmd),
@@ -238,7 +235,6 @@ fun StarkMasterConsoleUI(
                                 isDestructive = json.optBoolean("destructive", false)
                             )
                             messages.add(ConsoleMessage(sender = "COUNCIL", tacticalData = tactical))
-                            // Speak clean Karen voice
                             if (tactical.karenVoice.isNotBlank()) {
                                 onSpeakToggle(tactical.karenVoice)
                             }
@@ -246,7 +242,7 @@ fun StarkMasterConsoleUI(
                             messages.add(ConsoleMessage(sender = "FRIDAY", text = resp))
                         }
                     } else {
-                        messages.add(ConsoleMessage(sender = "FRIDAY", text = "பாஸ், சர்வர் இணைப்பு துண்டிக்கப்பட்டது."))
+                        messages.add(ConsoleMessage(sender = "FRIDAY", text = "சர்வர் இணைப்பு முறிந்தது பாஸ்."))
                     }
                 }
             } catch (e: Exception) {
@@ -258,11 +254,9 @@ fun StarkMasterConsoleUI(
         }
     }
 
-    fun executeTerminalTask(msgIndex: Int, script: String, taskId: String) {
-        val targetMsg = messages[msgIndex]
-        targetMsg.isExecuting = true
-        targetMsg.isTerminated = false
-        targetMsg.terminalLogs = "> Initializing PTY Execution Bridge...\n$ $script\n"
+    fun executeTerminalTask(msg: ConsoleMessage, script: String, taskId: String) {
+        msg.isExecuting = true
+        msg.terminalLogs = "> Initializing PTY Shell...\n$ $script\n"
 
         coroutineScope.launch(Dispatchers.IO) {
             try {
@@ -283,27 +277,27 @@ fun StarkMasterConsoleUI(
                 while (inStream.read(buffer).also { bytesRead = it } != -1) {
                     val chunk = String(buffer, 0, bytesRead, Charsets.UTF_8)
                     withContext(Dispatchers.Main) {
-                        val current = targetMsg.terminalLogs + chunk
-                        // Keep last 150 lines (Ring Buffer)
-                        val lines = current.lines()
-                        targetMsg.terminalLogs = if (lines.size > 150) lines.takeLast(150).joinToString("\n") else current
+                        val updated = msg.terminalLogs + chunk
+                        val lines = updated.lines()
+                        // 150-வரி ரிங் பப்பர்
+                        msg.terminalLogs = if (lines.size > 150) lines.takeLast(150).joinToString("\n") else updated
                     }
                 }
                 socket.close()
                 withContext(Dispatchers.Main) {
-                    targetMsg.isExecuting = false
-                    targetMsg.terminalLogs += "\n[✓ Process Completed]"
+                    msg.isExecuting = false
+                    msg.terminalLogs += "\n[✓ Process Completed]"
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    targetMsg.isExecuting = false
-                    targetMsg.terminalLogs += "\n[x Execution Error: ${e.message}]"
+                    msg.isExecuting = false
+                    msg.terminalLogs += "\n[x Execution Error: ${e.message}]"
                 }
             }
         }
     }
 
-    fun killTask(msgIndex: Int, taskId: String) {
+    fun killTask(msg: ConsoleMessage, taskId: String) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val s = Socket()
@@ -315,9 +309,8 @@ fun StarkMasterConsoleUI(
                 }.toString())
                 s.close()
                 withContext(Dispatchers.Main) {
-                    messages[msgIndex].isExecuting = false
-                    messages[msgIndex].isTerminated = true
-                    messages[msgIndex].terminalLogs += "\n[⏹ Task Terminated by Boss - Process Killed]"
+                    msg.isExecuting = false
+                    msg.terminalLogs += "\n[⏹ Process Terminated by Boss - SIGKILL]"
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -336,7 +329,7 @@ fun StarkMasterConsoleUI(
                     onClick = {
                         coroutineScope.launch { drawerState.close() }
                         messages.clear()
-                        messages.add(ConsoleMessage(sender = "JARVIS", text = "புதிய அமர்வு தொடங்கப்பட்டது பாஸ்! அடுத்த கட்டளையை வழங்குங்கள்."))
+                        messages.add(ConsoleMessage(sender = "JARVIS", text = "புதிய அமர்வு தொடங்கப்பட்டது பாஸ்!"))
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1C2541)),
                     shape = RoundedCornerShape(20.dp),
@@ -348,8 +341,6 @@ fun StarkMasterConsoleUI(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("டூல்ஸ் & மேலாண்மை", color = Color(0xFF64748B), fontSize = 12.sp, modifier = Modifier.padding(start = 20.dp, bottom = 8.dp))
-
                 NavigationDrawerItem(
                     icon = { Icon(Icons.Default.Build, contentDescription = null, tint = Color(0xFFF59E0B)) },
                     label = { Text("DUM-E பின்னணி மெக்கானிக்", color = Color.White) },
@@ -358,16 +349,6 @@ fun StarkMasterConsoleUI(
                         coroutineScope.launch { drawerState.close() }
                         inspectDume()
                         showDumeStatus = true
-                    }
-                )
-
-                NavigationDrawerItem(
-                    icon = { Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Color(0xFF48CAE4)) },
-                    label = { Text("படங்கள் காப்பகம் (Image Vault)", color = Color.White) },
-                    selected = false,
-                    onClick = {
-                        coroutineScope.launch { drawerState.close() }
-                        Toast.makeText(context, "கேலரி திறக்கப்படுகிறது...", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -469,15 +450,12 @@ fun StarkMasterConsoleUI(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(messages.size) { index ->
-                    val msg = messages[index]
+                items(messages) { msg ->
                     if (msg.tacticalData != null) {
                         TacticalCardView(
-                            tactical = msg.tacticalData,
-                            logs = msg.terminalLogs,
-                            isExecuting = msg.isExecuting,
-                            onExecute = { script -> executeTerminalTask(index, script, msg.tacticalData.taskId) },
-                            onKill = { killTask(index, msg.tacticalData.taskId) },
+                            msg = msg,
+                            onExecute = { script -> executeTerminalTask(msg, script, msg.tacticalData.taskId) },
+                            onKill = { killTask(msg, msg.tacticalData.taskId) },
                             onSpeak = { text -> onSpeakToggle(text) },
                             isSpeaking = isSpeaking
                         )
@@ -519,16 +497,15 @@ fun StarkMasterConsoleUI(
 
 @Composable
 fun TacticalCardView(
-    tactical: TacticalPayload,
-    logs: String,
-    isExecuting: Boolean,
+    msg: ConsoleMessage,
     onExecute: (String) -> Unit,
     onKill: () -> Unit,
     onSpeak: (String) -> Unit,
     isSpeaking: Boolean
 ) {
+    val tactical = msg.tacticalData ?: return
     val context = LocalContext.current
-    var selectedTab by remember { mutableStateOf(0) } // 0: Safe Patch, 1: Raw Bypass
+    var selectedTab by remember { mutableStateOf(0) }
     var showTerminal by remember { mutableStateOf(false) }
 
     Surface(
@@ -537,14 +514,12 @@ fun TacticalCardView(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("🏛️ STARK MISSION COUNCIL", color = Color(0xFF48CAE4), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                // Karen Audio Toggle
                 Icon(
                     imageVector = if (isSpeaking) Icons.Default.Stop else Icons.Default.VolumeUp,
                     contentDescription = "Voice",
@@ -554,13 +529,9 @@ fun TacticalCardView(
             }
 
             Spacer(modifier = Modifier.height(6.dp))
-
-            // Jarvis Plan
             Text("JARVIS: ${tactical.jarvisBrief}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Ultron Audit Panel
             val severityColor = when (tactical.ultronSeverity) {
                 "CRITICAL" -> Color(0xFFEF4444)
                 "WARNING" -> Color(0xFFF59E0B)
@@ -586,7 +557,6 @@ fun TacticalCardView(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Tabs for Friday's Code
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { selectedTab = 0 },
@@ -607,10 +577,8 @@ fun TacticalCardView(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
             val currentScript = if (selectedTab == 0) tactical.safePatch else tactical.forceBypass
 
-            // Script Preview Box
             Surface(
                 color = Color(0xFF060A17),
                 shape = RoundedCornerShape(8.dp),
@@ -642,7 +610,6 @@ fun TacticalCardView(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Buttons
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
@@ -652,12 +619,12 @@ fun TacticalCardView(
                     colors = ButtonDefaults.buttonColors(containerColor = if (selectedTab == 0) Color(0xFF10B981) else Color(0xFFEF4444)),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.weight(1f),
-                    enabled = !isExecuting
+                    enabled = !msg.isExecuting
                 ) {
                     Text(if (selectedTab == 0) "⚡ திருத்தி இயக்கு" else "⚠️ ரிஸ்க்கோடு இயக்கு", fontSize = 12.sp, color = Color.White)
                 }
 
-                if (isExecuting) {
+                if (msg.isExecuting) {
                     Button(
                         onClick = onKill,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
@@ -668,7 +635,6 @@ fun TacticalCardView(
                 }
             }
 
-            // Collapsible Live Terminal Toggle
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth().clickable { showTerminal = !showTerminal },
@@ -681,7 +647,7 @@ fun TacticalCardView(
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
-                if (isExecuting) {
+                if (msg.isExecuting) {
                     CircularProgressIndicator(modifier = Modifier.size(12.dp), color = Color(0xFF10B981), strokeWidth = 2.dp)
                 }
             }
@@ -694,7 +660,7 @@ fun TacticalCardView(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = logs.ifBlank { "> Waiting for output..." },
+                            text = msg.terminalLogs.ifBlank { "> Waiting for output..." },
                             color = Color(0xFF38BDF8),
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp
