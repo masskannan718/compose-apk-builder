@@ -29,36 +29,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.PrintWriter
-import java.net.InetSocketAddress
-import java.net.Socket
 import java.util.Locale
-
-data class TacticalPayload(
-    val taskId: String,
-    val jarvisBrief: String,
-    val ultronSeverity: String,
-    val ultronFlaw: String,
-    val ultronImpact: String,
-    val safePatch: String,
-    val forceBypass: String,
-    val karenVoice: String
-)
-
-data class ConsoleMessage(
-    val sender: String,
-    val text: String = "",
-    val isBoss: Boolean = false,
-    val tacticalData: TacticalPayload? = null,
-    val terminalLogs: String = "",
-    val isExecuting: Boolean = false
-)
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
@@ -95,7 +68,6 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StarkConsoleRoot(onSpeak: (String) -> Unit) {
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     var isPlanning by remember { mutableStateOf(false) }
@@ -106,7 +78,7 @@ fun StarkConsoleRoot(onSpeak: (String) -> Unit) {
             messages.add(
                 ConsoleMessage(
                     sender = "JARVIS",
-                    text = "வணக்கம் பாஸ்! ஸ்டார்க் மிஷன் கண்ட்ரோல் நேரலை PTY டெர்மினலுடன் தயார் நிலையில் உள்ளது."
+                    text = "வணக்கம் பாஸ்! ஸ்டார்க் மிஷன் கண்ட்ரோல் மாடுலர் கட்டமைப்பில் தயார்."
                 )
             )
         }
@@ -118,55 +90,30 @@ fun StarkConsoleRoot(onSpeak: (String) -> Unit) {
         inputText = ""
         isPlanning = true
 
-        coroutineScope.launch(Dispatchers.IO) {
-            try {
-                val socket = Socket()
-                socket.connect(InetSocketAddress("127.0.0.1", 8080), 12000)
-                val out = PrintWriter(socket.getOutputStream(), true)
-                val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+        coroutineScope.launch {
+            val json = StarkClient.requestPlan(cmd)
+            isPlanning = false
 
-                val payload = JSONObject().apply {
-                    put("action", "PLAN")
-                    put("command", cmd)
-                }
-                out.println(payload.toString())
-                val resp = reader.readLine()
-                socket.close()
+            if (json != null) {
+                val auditObj = json.optJSONObject("ultron_audit") ?: JSONObject()
+                val patchObj = json.optJSONObject("patches") ?: JSONObject()
 
-                withContext(Dispatchers.Main) {
-                    isPlanning = false
-                    if (resp != null) {
-                        try {
-                            val json = JSONObject(resp)
-                            val auditObj = json.optJSONObject("ultron_audit") ?: JSONObject()
-                            val patchObj = json.optJSONObject("patches") ?: JSONObject()
-
-                            val tactical = TacticalPayload(
-                                taskId = json.optString("task_id", "task_${System.currentTimeMillis()}"),
-                                jarvisBrief = json.optString("jarvis_brief", "திட்டம் தயார்."),
-                                ultronSeverity = auditObj.optString("severity", "SAFE"),
-                                ultronFlaw = auditObj.optString("flaw", "குறைபாடுகள் இல்லை."),
-                                ultronImpact = auditObj.optString("impact", "பாதிப்பில்லை."),
-                                safePatch = patchObj.optString("safe_patch", cmd),
-                                forceBypass = patchObj.optString("force_bypass", cmd),
-                                karenVoice = json.optString("karen_voice", "கட்டளை தயார் பாஸ்.")
-                            )
-                            messages.add(ConsoleMessage(sender = "COUNCIL", tacticalData = tactical))
-                            if (tactical.karenVoice.isNotBlank()) {
-                                onSpeak(tactical.karenVoice)
-                            }
-                        } catch (e: Exception) {
-                            messages.add(ConsoleMessage(sender = "FRIDAY", text = resp))
-                        }
-                    } else {
-                        messages.add(ConsoleMessage(sender = "FRIDAY", text = "சர்வர் இணைப்பு கிடைக்கவில்லை பாஸ்."))
-                    }
+                val tactical = TacticalPayload(
+                    taskId = json.optString("task_id", "task_${System.currentTimeMillis()}"),
+                    jarvisBrief = json.optString("jarvis_brief", "திட்டம் தயார்."),
+                    ultronSeverity = auditObj.optString("severity", "SAFE"),
+                    ultronFlaw = auditObj.optString("flaw", "குறைபாடுகள் இல்லை."),
+                    ultronImpact = auditObj.optString("impact", "பாதிப்பில்லை."),
+                    safePatch = patchObj.optString("safe_patch", cmd),
+                    forceBypass = patchObj.optString("force_bypass", cmd),
+                    karenVoice = json.optString("karen_voice", "கட்டளை தயார் பாஸ்.")
+                )
+                messages.add(ConsoleMessage(sender = "COUNCIL", tacticalData = tactical))
+                if (tactical.karenVoice.isNotBlank()) {
+                    onSpeak(tactical.karenVoice)
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    isPlanning = false
-                    messages.add(ConsoleMessage(sender = "FRIDAY", text = "போர்ட் 8080 ஆஃப்லைன். stark_core_server.py இயங்குகிறதா என சரிபார்க்கவும்."))
-                }
+            } else {
+                messages.add(ConsoleMessage(sender = "FRIDAY", text = "போர்ட் 8080 ஆஃப்லைன். stark_core_server.py இயங்குகிறதா என சரிபார்க்கவும்."))
             }
         }
     }
@@ -177,67 +124,23 @@ fun StarkConsoleRoot(onSpeak: (String) -> Unit) {
             terminalLogs = "> Initializing PTY Shell...\n$ $script\n"
         )
 
-        coroutineScope.launch(Dispatchers.IO) {
-            try {
-                val socket = Socket()
-                socket.connect(InetSocketAddress("127.0.0.1", 8080), 8000)
-                val out = PrintWriter(socket.getOutputStream(), true)
-                val inStream = socket.getInputStream()
-
-                val payload = JSONObject().apply {
-                    put("action", "EXECUTE")
-                    put("task_id", taskId)
-                    put("script", script)
-                }
-                out.println(payload.toString())
-
-                val buffer = ByteArray(1024)
-                var bytesRead: Int
-                while (inStream.read(buffer).also { bytesRead = it } != -1) {
-                    val chunk = String(buffer, 0, bytesRead, Charsets.UTF_8)
-                    withContext(Dispatchers.Main) {
-                        val currentLogs = messages[index].terminalLogs + chunk
-                        val lines = currentLogs.lines()
-                        var trimmed = currentLogs
-                        if (lines.size > 150) {
-                            trimmed = lines.takeLast(150).joinToString("\n")
-                        }
-                        messages[index] = messages[index].copy(terminalLogs = trimmed)
-                    }
-                }
-                socket.close()
-                withContext(Dispatchers.Main) {
-                    val finalLogs = messages[index].terminalLogs + "\n[✓ Process Completed]"
-                    messages[index] = messages[index].copy(isExecuting = false, terminalLogs = finalLogs)
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    val errLogs = messages[index].terminalLogs + "\n[x Error: ${e.message}]"
-                    messages[index] = messages[index].copy(isExecuting = false, terminalLogs = errLogs)
-                }
+        coroutineScope.launch {
+            StarkClient.executePtyStream(taskId, script) { chunk ->
+                val current = messages[index].terminalLogs + chunk
+                val lines = current.lines()
+                val trimmed = if (lines.size > 150) lines.takeLast(150).joinToString("\n") else current
+                messages[index] = messages[index].copy(terminalLogs = trimmed)
             }
+            messages[index] = messages[index].copy(isExecuting = false)
         }
     }
 
     fun killTask(index: Int, taskId: String) {
-        coroutineScope.launch(Dispatchers.IO) {
-            try {
-                val s = Socket()
-                s.connect(InetSocketAddress("127.0.0.1", 8080), 3000)
-                val out = PrintWriter(s.getOutputStream(), true)
-                out.println(JSONObject().apply {
-                    put("action", "KILL")
-                    put("task_id", taskId)
-                }.toString())
-                s.close()
-                withContext(Dispatchers.Main) {
-                    val killedLogs = messages[index].terminalLogs + "\n[⏹ Terminated by Boss - SIGKILL]"
-                    messages[index] = messages[index].copy(isExecuting = false, terminalLogs = killedLogs)
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "கில் தோல்வி", Toast.LENGTH_SHORT).show()
-                }
+        coroutineScope.launch {
+            val success = StarkClient.killRunningProcess(taskId)
+            if (success) {
+                val killed = messages[index].terminalLogs + "\n[⏹ Terminated by Boss - SIGKILL]"
+                messages[index] = messages[index].copy(isExecuting = false, terminalLogs = killed)
             }
         }
     }
@@ -248,7 +151,7 @@ fun StarkConsoleRoot(onSpeak: (String) -> Unit) {
                 title = {
                     Column {
                         Text("STARK MISSION CONTROL", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text("6 Agents & PTY Core Active", color = Color(0xFF48CAE4), fontSize = 11.sp)
+                        Text("Modular Architecture Online", color = Color(0xFF48CAE4), fontSize = 11.sp)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0B132B)),
