@@ -1,79 +1,114 @@
 package com.example.generatedapp
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.PrintWriter
+import java.net.InetSocketAddress
+import java.net.Socket
 
-data class Message(val sender: String, val text: String, val isUser: Boolean = false, val isError: Boolean = false)
+data class ChatMessage(val sender: String, val text: String, val isBoss: Boolean = false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            SuperConsoleScreen()
+            GeminiConsoleScreen()
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SuperConsoleScreen() {
-    val messages = remember { mutableStateListOf(
-        Message("JARVIS", "வணக்கம் பாஸ்! ஸ்டார்க் கவுன்சில் தயார் நிலையில் உள்ளது."),
-        Message("FRIDAY", "பாஸ், ஆடியோ மற்றும் பாதுகாப்பு கட்டுப்பாடுகள் இணைக்கப்பட்டுள்ளன.")
-    ) }
-    var inputText by remember { mutableStateOf("") }
+fun GeminiConsoleScreen() {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    
+    var inputText by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
     var showDumeDialog by remember { mutableStateOf(false) }
-
     var serverStatus by remember { mutableStateOf("Checking...") }
-    var groqStatus by remember { mutableStateOf("Checking...") }
-    var isChecking by remember { mutableStateOf(false) }
+    
+    val messages = remember {
+        mutableStateListOf(
+            ChatMessage("JARVIS", "வணக்கம் பாஸ்! ஜெமினி ஸ்டைல் ஸ்டார்க் கவுன்சில் முழுமையாக ஒருங்கிணைக்கப்பட்டுள்ளது. எதையும் கட்டளையிடலாம்!"),
+            ChatMessage("FRIDAY", "லைவ் வாய்ஸ், ஆக்‌ஷன் பார் மற்றும் பாதுகாப்பு அம்சங்கள் இணைக்கப்பட்டுள்ளன பாஸ்.")
+        )
+    }
 
-    fun checkDumeDiagnostics() {
-        isChecking = true
+    fun checkDumeStatus() {
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val url = URL("http://127.0.0.1:8080/api/dume/diagnose")
-                val conn = url.openConnection() as HttpURLConnection
-                conn.connectTimeout = 3000
-                conn.readTimeout = 3000
-                val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
-                val response = stream.bufferedReader().use { it.readText() }
-                val json = JSONObject(response)
+                val s = Socket()
+                s.connect(InetSocketAddress("127.0.0.1", 8080), 2000)
+                s.close()
+                serverStatus = "Online [✓]"
+            } catch (e: Exception) {
+                serverStatus = "Offline [x] (Failed to connect)"
+            }
+        }
+    }
+
+    fun sendMessage(msgToSend: String) {
+        if (msgToSend.isBlank()) return
+        messages.add(ChatMessage("BOSS", msgToSend, isBoss = true))
+        inputText = ""
+
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val socket = Socket()
+                socket.connect(InetSocketAddress("127.0.0.1", 8080), 3000)
+                val out = PrintWriter(socket.getOutputStream(), true)
+                val `in` = BufferedReader(InputStreamReader(socket.getInputStream()))
+
+                val payload = JSONObject().apply { put("command", msgToSend) }
+                out.println(payload.toString())
+
+                val resp = `in`.readLine()
+                socket.close()
+
                 withContext(Dispatchers.Main) {
-                    serverStatus = if (json.optBoolean("server_online")) "Online [✓]" else "Offline [✗]"
-                    groqStatus = if (json.optBoolean("groq_connected")) "Connected [✓]" else json.optString("groq_msg", "Error [✗]")
-                    isChecking = false
+                    if (resp != null) {
+                        val json = JSONObject(resp)
+                        val reply = json.optString("reply", "பதில் பெறப்படவில்லை")
+                        val agent = json.optString("agent", "COUNCIL")
+                        messages.add(ChatMessage(agent, reply))
+                    } else {
+                        messages.add(ChatMessage("DUM-E", "சர்வரிலிருந்து பதில் வரவில்லை பாஸ்!"))
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    serverStatus = "Offline [✗] (${e.localizedMessage})"
-                    groqStatus = "Unreachable [✗]"
-                    isChecking = false
+                    messages.add(ChatMessage("DUM-E", "இணைப்புப் பிழை: ${e.message}\nசெட்டிங்ஸில் சரிபார்க்கவும்."))
                 }
             }
         }
@@ -84,108 +119,121 @@ fun SuperConsoleScreen() {
             TopAppBar(
                 title = {
                     Column {
-                        Text("SUPER CONSOLE", fontSize = 18.sp, color = Color.White)
-                        Text("Stage 2: Council Debating...", fontSize = 11.sp, color = Color.LightGray)
+                        Text("SUPER CONSOLE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Gemini Engine Active", color = Color(0xFF64B5F6), fontSize = 12.sp)
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A)),
                 actions = {
                     IconButton(onClick = { showMenu = !showMenu }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Menu", tint = Color.White)
                     }
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                        onDismissRequest = { showMenu = false },
+                        modifier = BoxModifierTheme.background(Color(0xFF1E293B))
                     ) {
                         DropdownMenuItem(
-                            text = { Text("🛠️ DUM-E மெக்கானிக் (Settings)") },
+                            text = { Text("🛠️ DUM-E மெக்கானிக்", color = Color.White) },
                             onClick = {
                                 showMenu = false
+                                checkDumeStatus()
                                 showDumeDialog = true
-                                checkDumeDiagnostics()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🧹 அரட்டையை அழிக்க", color = Color.White) },
+                            onClick = {
+                                showMenu = false
+                                messages.clear()
                             }
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
+                }
             )
         },
-        containerColor = Color(0xFF0F172A)
+        bottomBar = {
+            // Gemini-Style Bottom Bar
+            Surface(
+                color = Color(0xFF0F172A),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(Color(0xFF1E293B))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    // + Attachment Button
+                    IconButton(onClick = {
+                        Toast.makeText(context, "கோப்பு இணைப்பு வசதி விரைவில்...", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Attach", tint = Color(0xFF94A3B8))
+                    }
+
+                    // Text Input
+                    TextField(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        placeholder = { Text("கேளுங்கள் அல்லது கட்டளையிடுங்கள்...", color = Color(0xFF64748B), fontSize = 14.sp) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Mic Button
+                    IconButton(onClick = {
+                        Toast.makeText(context, "மைக் மூலமாக பேசலாம்...", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Default.Mic, contentDescription = "Mic", tint = Color(0xFF94A3B8))
+                    }
+
+                    // Live Voice Waveform Button / Send Button
+                    if (inputText.isBlank()) {
+                        IconButton(
+                            onClick = {
+                                Toast.makeText(context, "நேரடி ஆடியோ மோட் தொடங்குகிறது...", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2563EB))
+                        ) {
+                            Icon(Icons.Default.GraphicEq, contentDescription = "Live Voice", tint = Color.White)
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { sendMessage(inputText) },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF2563EB))
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
+                        }
+                    }
+                }
+            }
+        },
+        containerColor = Color(0xFF090D16)
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                reverseLayout = false
-            ) {
-                items(messages) { msg ->
-                    ChatBubble(msg)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    placeholder = { Text("தமிழில் கட்டளையிடவும்...", color = Color.Gray) },
-                    modifier = Modifier.weight(1f),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFF1E293B),
-                        unfocusedContainerColor = Color(0xFF1E293B),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = {
-                        val text = inputText
-                        if (text.isNotBlank()) {
-                            messages.add(Message("BOSS", text, isUser = true))
-                            inputText = ""
-                            coroutineScope.launch(Dispatchers.IO) {
-                                try {
-                                    val url = URL("http://127.0.0.1:8080/api/chat")
-                                    val conn = url.openConnection() as HttpURLConnection
-                                    conn.requestMethod = "POST"
-                                    conn.setRequestProperty("Content-Type", "application/json")
-                                    conn.doOutput = true
-                                    conn.connectTimeout = 5000
-                                    conn.readTimeout = 20000
-
-                                    val payload = JSONObject().put("task", text)
-                                    OutputStreamWriter(conn.outputStream).use { it.write(payload.toString()) }
-
-                                    val response = conn.inputStream.bufferedReader().use { it.readText() }
-                                    val json = JSONObject(response)
-                                    val jarvisReply = json.optString("jarvis", "பதில் பெறப்படவில்லை.")
-                                    withContext(Dispatchers.Main) {
-                                        messages.add(Message("JARVIS", jarvisReply))
-                                    }
-                                } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) {
-                                        messages.add(Message("SYSTEM", "இணைப்புப் பிழை: ${e.localizedMessage}", isError = true))
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    modifier = Modifier.background(Color(0xFF2563EB), RoundedCornerShape(50))
-                ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
-                }
+            items(messages) { msg ->
+                GeminiMessageItem(msg)
             }
         }
     }
@@ -193,72 +241,108 @@ fun SuperConsoleScreen() {
     if (showDumeDialog) {
         AlertDialog(
             onDismissRequest = { showDumeDialog = false },
-            title = { Text("🛠️ DUM-E மெக்கானிக் கண்டறிதல்") },
+            title = { Text("🛠️ DUM-E மெக்கானிக்", color = Color.White) },
             text = {
                 Column {
-                    Text("1. Termux சர்வர் (127.0.0.1:8080):")
-                    Text(serverStatus, color = if (serverStatus.contains("[✓]")) Color(0xFF22C55E) else Color(0xFFEF4444), fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("2. Groq AI கவுன்சில் இணைப்பு:")
-                    Text(groqStatus, color = if (groqStatus.contains("[✓]")) Color(0xFF22C55E) else Color(0xFFEF4444), fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    if (isChecking) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    }
+                    Text("1. Termux சர்வர் (127.0.0.1:8080):\n$serverStatus", color = Color(0xFFE2E8F0))
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        isChecking = true
-                        coroutineScope.launch(Dispatchers.IO) {
-                            try {
-                                val url = URL("http://127.0.0.1:8080/api/dume/fix")
-                                val conn = url.openConnection() as HttpURLConnection
-                                conn.requestMethod = "POST"
-                                conn.connectTimeout = 4000
-                                conn.inputStream.bufferedReader().use { it.readText() }
-                            } catch (_: Exception) {}
-                            checkDumeDiagnostics()
-                        }
-                    }
+                    onClick = { checkDumeStatus() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1))
                 ) {
-                    Text("பழுதுநீக்கு (Fix System)")
+                    Text("சரிபார் (Recheck)")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDumeDialog = false }) {
-                    Text("மூடு")
+                    Text("மூடு", color = Color(0xFF94A3B8))
                 }
-            }
+            },
+            containerColor = Color(0xFF1E293B)
         )
     }
 }
 
 @Composable
-fun ChatBubble(msg: Message) {
-    val bgColor = when {
-        msg.isError -> Color(0xFF3B151E)
-        msg.isUser -> Color(0xFF1D4ED8)
-        else -> Color(0xFF1E293B)
-    }
-    val align = if (msg.isUser) Alignment.End else Alignment.Start
+fun GeminiMessageItem(msg: ChatMessage) {
+    val context = LocalContext.current
 
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = align) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = bgColor),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (msg.isBoss) Alignment.End else Alignment.Start
+    ) {
+        // Sender Label
+        Text(
+            text = msg.sender,
+            color = if (msg.isBoss) Color(0xFF60A5FA) else Color(0xFF34D399),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 2.dp, start = 4.dp, end = 4.dp)
+        )
+
+        // Bubble
+        Surface(
+            color = if (msg.isBoss) Color(0xFF1E3A8A) else Color(0xFF1E293B),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier.widthIn(max = 320.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = msg.sender,
-                    fontSize = 11.sp,
-                    color = if (msg.isError) Color(0xFFF87171) else Color(0xFF38BDF8)
+            Text(
+                text = msg.text,
+                color = Color(0xFFF1F5F9),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+
+        // Action Bar for AI replies (Copy, Listen, Regenerate)
+        if (!msg.isBoss) {
+            Row(
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Copy Action
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "Copy",
+                    tint = Color(0xFF64748B),
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Council Text", msg.text)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "நகலெடுக்கப்பட்டது!", Toast.LENGTH_SHORT).show()
+                        }
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = msg.text, fontSize = 14.sp, color = Color.White)
+                // Listen Action
+                Icon(
+                    Icons.Default.VolumeUp,
+                    contentDescription = "Listen",
+                    tint = Color(0xFF64748B),
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable {
+                            Toast.makeText(context, "வாசிக்கிறது...", Toast.LENGTH_SHORT).show()
+                        }
+                )
+                // Reload Action
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "Regenerate",
+                    tint = Color(0xFF64748B),
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable {
+                            Toast.makeText(context, "மீண்டும் உருவாக்குகிறது...", Toast.LENGTH_SHORT).show()
+                        }
+                )
             }
         }
     }
+}
+
+object BoxModifierTheme {
+    fun background(c: Color) = Modifier.background(c)
 }
