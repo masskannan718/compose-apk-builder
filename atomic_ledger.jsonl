@@ -9,3 +9,4 @@
 {"block": "BLOCK_3", "steps": ["STEP_07", "STEP_08", "STEP_09"], "features": ["TWOWAY_REBASE", "ZERO_FOOTPRINT_ROTATOR", "SQLITE_INDEX_BRIDGE"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_4", "steps": ["STEP_10", "STEP_11", "STEP_12"], "features": ["CHUNK_RESUMER_64M", "SENTINEL_V2_CIRCUIT_BREAKER", "TOKEN_AUTOREFRESH_HANDLER"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_5", "steps": ["STEP_13", "STEP_14", "STEP_15"], "features": ["HEADLESS_POLLER", "STREAM_BROADCASTER", "MASTER_CLI_SEALED"], "status": "ALL_15_STEPS_LOCKED"}
+{"task_id": "PUYAL_20261027_124034", "file": "puyal_test_payload_20261027_124034.txt", "route": "ROUTE_B_MEGA_CRYPT", "checksum": "fb5ed8b5425f36dc58535b3fd8d7c82766057b93685d8dfdb337cc4981539ab6", "destination": "puyal_vault:puyal_secure_vault/", "status": "DISPATCHED"}
