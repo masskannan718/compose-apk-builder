@@ -2,3 +2,4 @@
 {"task_id": "STEP06_20261027_121920", "layer": "INTEGRITY_SHIELD", "algorithm": "SHA-256", "status": "VERIFIED_ACTIVE"}
 {"task_id": "STEP07_20261027_122130", "layer": "DELIVERY_ALERT", "channel": "STREAM_AND_TELEGRAM_FALLBACK", "status": "VERIFIED_ACTIVE"}
 {"task_id": "STEP08_20261027_122211", "layer": "SENTINEL_GATE", "threshold": "70_PERCENT_MINUTES", "status": "VERIFIED_ACTIVE"}
+{"task_id": "STEP09_20261027_122250", "layer": "DISPATCHER_NODE", "runtime": "ZERO_COMPUTE_TRIGGER", "status": "VERIFIED_ACTIVE"}
