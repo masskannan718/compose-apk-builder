@@ -23,3 +23,4 @@
 {"step": "STEP_1_WEB_UI_CONSOLE", "target": "PORT_8765", "ram_footprint": "<10MB", "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_2_DIRECT_STREAM_MONITOR", "endpoint": "/api/events", "protocol": "Server-Sent-Events", "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_3_CLOUD_DISPATCHER", "target": "HUGGINGFACE_RENDER_NODE", "footprint": "<30MB", "status": "VERIFIED_PRODUCTION"}
+{"step": "STEP_5_SENTINEL_GATEKEEPER", "threshold": "70_PERCENT_HARDCAP", "max_minutes": 1400, "status": "VERIFIED_PRODUCTION"}
