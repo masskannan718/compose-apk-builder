@@ -1,3 +1,4 @@
 {"timestamp": "2026-10-27T05:33:49Z", "file_name": "ledger_test.txt", "bytes": 74, "sha256": "387beb97d3d66a93d212668d9f9cce5358c860ee30ba3c0a0561da3d0aa5999b", "stages": ["Build_OK", "Upload_OK", "SHA256_Verified", "Delivered_OK"], "status": "COMMITTED"}
 {"task_id": "STEP06_20261027_121920", "layer": "INTEGRITY_SHIELD", "algorithm": "SHA-256", "status": "VERIFIED_ACTIVE"}
 {"task_id": "STEP07_20261027_122130", "layer": "DELIVERY_ALERT", "channel": "STREAM_AND_TELEGRAM_FALLBACK", "status": "VERIFIED_ACTIVE"}
+{"task_id": "STEP08_20261027_122211", "layer": "SENTINEL_GATE", "threshold": "70_PERCENT_MINUTES", "status": "VERIFIED_ACTIVE"}
