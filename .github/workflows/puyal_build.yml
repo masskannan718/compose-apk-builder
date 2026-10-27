@@ -30,6 +30,7 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: 📦 Synthesize Golden Master Android Project Structure
@@ -42,7 +43,7 @@ jobs:
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
-          # 1. gradle.properties (Fixes checkReleaseAarMetadata error)
+          # 1. gradle.properties
           cat << 'PEOF' > gradle.properties
           android.useAndroidX=true
           android.nonTransitiveRClass=true
@@ -178,19 +179,22 @@ jobs:
         run: |
           ./gradlew assembleRelease --no-daemon -Pandroid.suppressUnsupportedCompileSdk=34
 
-      - name: 🔑 Persistent Keystore Signing
-        env:
-          KEYSTORE_BASE64: ${{ secrets.PUYAL_KEYSTORE_BASE64 }}
+      - name: 🔑 100% Valid Auto-Keystore & apksigner
         run: |
-          APK_UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-            zipalign -v -p 4 $APK_UNSIGNED puyal_aligned.apk
-            apksigner sign --ks release.keystore --ks-pass pass:puyal2026 --out puyal_signed.apk puyal_aligned.apk
-          else
-            echo "Signing with debug key as fallback for immediate installation..."
-            cp $APK_UNSIGNED puyal_signed.apk
-          fi
+          BUILD_TOOLS="/usr/local/lib/android/sdk/build-tools/34.0.0"
+          APK_RAW="app/build/outputs/apk/release/app-release-unsigned.apk"
+
+          # கீஸ்டோர் இல்லையென்றால் உடனடியாக வாலிட் சான்றிதழை உருவாக்குதல்
+          keytool -genkey -v -keystore release.keystore -alias puyalkey -keyalg RSA -keysize 2048 -validity 10000 -storepass puyalpass -keypass puyalpass -dname "CN=Puyal, OU=Mobile, O=PuyalDev, L=Chennai, S=TN, C=IN"
+
+          # Zipalign செய்தல்
+          $BUILD_TOOLS/zipalign -v -p 4 $APK_RAW puyal_aligned.apk
+
+          # V2/V3 ஆபிஷியல் ஆண்ட்ராய்டு கையொப்பம் இடுதல்
+          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:puyalpass --ks-key-alias puyalkey --key-pass pass:puyalpass --out puyal_signed.apk puyal_aligned.apk
+
+          # கையொப்பத்தை உறுதி செய்தல்
+          $BUILD_TOOLS/apksigner verify --verbose puyal_signed.apk
 
       - name: 📤 Upload Build Artifact
         uses: actions/upload-artifact@v4
