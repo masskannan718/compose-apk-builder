@@ -11,6 +11,7 @@
         .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 16px; }
         .title { font-size: 1.15rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
         .badge { background: #059669; color: #fff; font-size: 0.7rem; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; font-weight: bold; }
+        .badge.active { background: #0284c7; }
         .section-label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
         .route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
         .route-btn { background: #0f172a; border: 2px solid #334155; border-radius: 10px; padding: 12px 8px; text-align: center; color: #94a3b8; cursor: pointer; transition: 0.2s; }
@@ -20,14 +21,14 @@
         .input-box { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 10px 12px; font-size: 0.9rem; }
         .dispatch-btn { width: 100%; background: #0284c7; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); }
         .dispatch-btn:active { transform: scale(0.98); background: #0369a1; }
-        .terminal { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.75rem; color: #10b981; height: 130px; overflow-y: auto; margin-top: 16px; }
+        .terminal { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.75rem; color: #10b981; height: 140px; overflow-y: auto; margin-top: 16px; }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="header">
             <div class="title">🌪️ Puyal Cloud v5.3</div>
-            <span class="badge" id="sys-status">Ready</span>
+            <span class="badge" id="sys-status">LIVE STREAM</span>
         </div>
 
         <div class="section-label">Select Pipeline Route</div>
@@ -51,11 +52,10 @@
             ⚡ One-Touch Cloud Trigger
         </button>
 
-        <div class="section-label" style="margin-top: 16px;">Console Live Stream</div>
+        <div class="section-label" style="margin-top: 16px;">Console Live Stream (SSE)</div>
         <div class="terminal" id="term-logs">
-            [Puyal Engine]: Universal Web Console initialized.<br>
-            [Puyal Engine]: Dual Vaults (GDrive 5TB + MEGA Crypt) mapped.<br>
-            [Puyal Engine]: Awaiting one-touch trigger...
+            [Stream Engine]: Connected to SSE Bridge (/api/events)...<br>
+            [Stream Engine]: Awaiting one-touch telemetry events...
         </div>
     </div>
 
@@ -66,7 +66,7 @@
             currentRoute = route;
             document.getElementById('btn-crypt').classList.toggle('active', route === 'ROUTE_CRYPT');
             document.getElementById('btn-build').classList.toggle('active', route === 'ROUTE_BUILD');
-            log(`[Routing]: Destination switched to ${route}`);
+            log(`[Routing]: Route selected -> ${route}`);
         }
 
         function log(msg) {
@@ -75,10 +75,16 @@
             term.scrollTop = term.scrollHeight;
         }
 
+        // STEP 2: SSE Live Event Listener
+        const eventSource = new EventSource('/api/events');
+        eventSource.onmessage = function(e) {
+            log(e.data);
+        };
+
         function triggerDispatch() {
             const target = document.getElementById('target-file').value;
-            log(`[Dispatch]: Emitting ${currentRoute} signal for ${target}...`);
-            document.getElementById('sys-status').innerText = "Triggering...";
+            log(`[Dispatch]: Emitting ${currentRoute} trigger signal...`);
+            document.getElementById('sys-status').innerText = "STREAMING";
 
             fetch('/api/dispatch', {
                 method: 'POST',
@@ -87,13 +93,11 @@
             })
             .then(res => res.json())
             .then(data => {
-                log(`[Success]: Manifest Sealed! Code: ${data.status}`);
-                log(`[Cloud Intent]: Handed off to GitHub Actions VM.`);
-                document.getElementById('sys-status').innerText = "Dispatched";
+                log(`[Success]: Manifest Dispatched! Status: ${data.status}`);
             })
             .catch(err => {
                 log(`[Error]: Dispatch failed - ${err}`);
-                document.getElementById('sys-status').innerText = "Failed";
+                document.getElementById('sys-status').innerText = "ERROR";
             });
         }
     </script>
