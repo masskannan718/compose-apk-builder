@@ -18,3 +18,5 @@
 {"block": "BLOCK_5_FINAL_SEAL", "steps": ["STEP_13", "STEP_14", "STEP_15"], "features": ["TELEGRAM_ALERT", "AUTO_SANITIZER_V2", "MASTER_15_OF_15_SEAL"], "status": "LOCKED_PRODUCTION"}
 {"stage": "STAGE_1_MEGA_CORE_CRYPT", "step": "STEP_1_3", "target": "MEGA_20GB", "encryption": "AES_256", "status": "VERIFIED_PRODUCTION"}
 {"stage": "STAGE_2_EPHEMERAL_WORKER", "step": "STEP_2_1_WORKFLOW", "file": ".github/workflows/puyal_worker.yml", "status": "COMMITTED_PRODUCTION"}
+{"stage": "STAGE_3_TRIAGE_DISPATCH", "steps": ["STEP_3_1_SENTINEL", "STEP_3_2_CLASSIFIER", "STEP_3_3_DISPATCH"], "status": "VERIFIED_PRODUCTION"}
+{"stage": "STAGE_3_TRIAGE_DISPATCH", "steps": ["STEP_3_1_SENTINEL", "STEP_3_2_CLASSIFIER", "STEP_3_3_DISPATCH"], "status": "VERIFIED_PRODUCTION"}
