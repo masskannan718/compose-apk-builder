@@ -22,3 +22,4 @@
 {"stage": "STAGE_3_TRIAGE_DISPATCH", "steps": ["STEP_3_1_SENTINEL", "STEP_3_2_CLASSIFIER", "STEP_3_3_DISPATCH"], "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_1_WEB_UI_CONSOLE", "target": "PORT_8765", "ram_footprint": "<10MB", "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_2_DIRECT_STREAM_MONITOR", "endpoint": "/api/events", "protocol": "Server-Sent-Events", "status": "VERIFIED_PRODUCTION"}
+{"step": "STEP_3_CLOUD_DISPATCHER", "target": "HUGGINGFACE_RENDER_NODE", "footprint": "<30MB", "status": "VERIFIED_PRODUCTION"}
