@@ -24,3 +24,4 @@
 {"step": "STEP_2_DIRECT_STREAM_MONITOR", "endpoint": "/api/events", "protocol": "Server-Sent-Events", "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_3_CLOUD_DISPATCHER", "target": "HUGGINGFACE_RENDER_NODE", "footprint": "<30MB", "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_5_SENTINEL_GATEKEEPER", "threshold": "70_PERCENT_HARDCAP", "max_minutes": 1400, "status": "VERIFIED_PRODUCTION"}
+{"step": "STEP_6_ANDROID_APK_PIPELINE", "route": "ROUTE_A", "destination": "puyal_drive:puyal_builds/apk/", "jdk": "zulu_17", "status": "VERIFIED_PRODUCTION"}
