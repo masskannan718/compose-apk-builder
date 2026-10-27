@@ -112,6 +112,31 @@ jobs:
           echo "ROUTE_B_SUCCESS=true" >> $GITHUB_ENV
 
       # =========================================================================
+      # STEP 9: AUTOMATED TELEGRAM DELIVERY NOTIFICATION ENGINE
+      # =========================================================================
+      - name: "Step 9: Dispatch Automated Telegram Delivery Notification"
+        continue-on-error: true
+        run: |
+          TG_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          TG_CHAT_ID="${{ secrets.TELEGRAM_CHAT_ID }}"
+          
+          if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT_ID" ]; then
+              echo "[-] Dispatching Live Telegram Notification..."
+              MSG="🌪️ <b>PUYAL v5.3 CLOUD DELIVERY NOTIFICATION</b>%0A%0A"
+              MSG="${MSG}✅ <b>Status:</b> Completed (Zero-Compute)%0A"
+              MSG="${MSG}📦 <b>File:</b> <code>${{ env.PAYLOAD_FILE }}</code>%0A"
+              MSG="${MSG}📂 <b>Destination:</b> ${{ env.TARGET_DESTINATION }}%0A"
+              MSG="${MSG}🔐 <b>SHA-256:</b> <code>${{ env.PAYLOAD_SHA256 }}</code>%0A%0A"
+              MSG="${MSG}🛡️ <i>Integrity Verified. Workspace Sanitized.</i>"
+              
+              curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage"                 -d "chat_id=${TG_CHAT_ID}"                 -d "text=${MSG}"                 -d "parse_mode=HTML" > /dev/null || true
+              echo "  [✓] Telegram delivery alert emitted."
+          else
+              echo "[!] Telegram secrets (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID) not configured."
+              echo "    Displaying alert in runner console instead."
+          fi
+
+      # =========================================================================
       # AUDIT TELEMETRY DISPLAY
       # =========================================================================
       - name: "Audit: Display Checksum Manifest in Cloud Console"
