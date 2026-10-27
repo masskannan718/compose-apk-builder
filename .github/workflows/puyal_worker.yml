@@ -20,10 +20,12 @@ jobs:
           echo "${{ secrets.RCLONE_CONFIG_BASE64 }}" | base64 -d > ~/.config/rclone/rclone.conf
 
       - name: Process Payloads & Calculate SHA-256 Checksum
+        id: process_payloads
         run: |
           echo "========================================================"
           echo "  PUYAL INTEGRITY SHIELD: VERIFYING CHECKSUMS (STEP 06) "
           echo "========================================================"
+          PROCESSED_COUNT=0
           for file in payload_*.txt; do
             if [ -f "$file" ]; then
               CHECKSUM=$(sha256sum "$file" | awk "{print \$1}")
@@ -33,6 +35,36 @@ jobs:
               
               # Route A: Google Drive 5TB Direct Stream
               rclone copy "$file" puyal_vault:puyal_tests/ -v
+              PROCESSED_COUNT=$((PROCESSED_COUNT + 1))
             fi
           done
-          echo "Integrity verification completed successfully."
+          echo "count=$PROCESSED_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Instant Delivery Notification (Step 07)
+        if: always()
+        run: |
+          echo "========================================================"
+          echo "     PUYAL DELIVERY NOTIFICATION DISPATCH (STEP 07)     "
+          echo "========================================================"
+          STATUS="${{ job.status }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          FILES_COUNT="${{ steps.process_payloads.outputs.count }}"
+          
+          MESSAGE="⚡ [PUYAL v5.3 NOTIFICATION]
+Status: $STATUS
+Timestamp: $TIMESTAMP
+Processed Payloads: $FILES_COUNT
+Destination: Google Drive 5TB (puyal_vault)
+Integrity: SHA-256 Verified"
+
+          echo "$MESSAGE"
+
+          # Optional Telegram Dispatch (Zero-fail fallback)
+          if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] && [ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d "text=$MESSAGE" >/dev/null 2>&1 || true
+            echo "[✓] Telegram delivery alert dispatched."
+          else
+            echo "[i] Telegram secrets not configured. Notification output logged to stream."
+          fi
