@@ -42,7 +42,14 @@ jobs:
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/res/values
 
-          # 1. Root build.gradle
+          # 1. gradle.properties (Fixes checkReleaseAarMetadata error)
+          cat << 'PEOF' > gradle.properties
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          PEOF
+
+          # 2. Root build.gradle
           cat << 'GEOF' > build.gradle
           buildscript {
               repositories {
@@ -61,13 +68,13 @@ jobs:
           }
           GEOF
 
-          # 2. settings.gradle
+          # 3. settings.gradle
           cat << 'SEOF' > settings.gradle
           rootProject.name = "PuyalAutonomous"
           include ':app'
           SEOF
 
-          # 3. app/build.gradle
+          # 4. app/build.gradle
           cat << AEOF > app/build.gradle
           apply plugin: 'com.android.application'
 
@@ -100,7 +107,7 @@ jobs:
           }
           AEOF
 
-          # 4. AndroidManifest.xml
+          # 5. AndroidManifest.xml
           cat << MEOF > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -121,14 +128,14 @@ jobs:
           </manifest>
           MEOF
 
-          # 5. Strings & Colors
+          # 6. Strings & Colors
           cat << REOF > app/src/main/res/values/strings.xml
           <resources>
               <string name="app_name">${APP_NAME}</string>
           </resources>
           REOF
 
-          # 6. Activity Layout XML
+          # 7. Activity Layout XML
           cat << 'LEOF' > app/src/main/res/layout/activity_main.xml
           <?xml version="1.0" encoding="utf-8"?>
           <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -146,7 +153,7 @@ jobs:
           </RelativeLayout>
           LEOF
 
-          # 7. MainActivity Java
+          # 8. MainActivity Java
           cat << JEOF > app/src/main/java/$PKG_PATH/MainActivity.java
           package ${PKG_NAME};
 
