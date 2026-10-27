@@ -8,7 +8,7 @@ on:
       route:
         description: "Select Pipeline Route (ROUTE_BUILD or ROUTE_CRYPT)"
         required: true
-        default: "ROUTE_BUILD"
+        default: "ROUTE_CRYPT"
 
 jobs:
   puyal_ephemeral_worker:
@@ -45,8 +45,6 @@ jobs:
         run: |
           echo "[-] Starting Cloud-Side Android Build Execution..."
           chmod +x ./gradlew || true
-          
-          # Gradle பில்ட் இயக்கம் (உண்மையான APK அல்லது ஃபால்பேக் ஆட்டோ-பேக்கேஜர்)
           if [ -f "./gradlew" ] && [ -d "./app" ]; then
               ./gradlew assembleDebug --no-daemon --stacktrace || {
                   echo "[!] Gradle build warning: Falling back to lightweight APK packaging..."
@@ -70,14 +68,22 @@ jobs:
       # =========================================================================
       # ROUTE B: CORE SOURCE PACKAGING -> MEGA 20GB AES-256 CRYPT
       # =========================================================================
-      - name: "Route B: Execute MEGA Crypt Vault Delivery"
+      - name: "Route B: Git Archive & Master Source Packaging"
         if: ${{ github.event.client_payload.route == 'ROUTE_CRYPT' || github.event.inputs.route == 'ROUTE_CRYPT' || (github.event.client_payload.route == '' && github.event.inputs.route == '') }}
         run: |
-          echo "[-] Routing Encrypted Source Code to MEGA 20GB Crypt Vault..."
+          echo "[-] Packaging Clean Git Source Code Archive..."
           TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
           mkdir -p /tmp/crypt_blobs
-          echo "Puyal Source Code Master Vault Archive - ${TIMESTAMP}" > /tmp/crypt_blobs/master_source_${TIMESTAMP}.txt
-          rclone copy /tmp/crypt_blobs/ puyal_crypt: --buffer-size 0M -q
+          ARCHIVE_NAME="puyal_master_source_${TIMESTAMP}.tar.gz"
+          git archive --format=tar.gz -o "/tmp/crypt_blobs/${ARCHIVE_NAME}" HEAD
+          echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
+          echo "[-] Archive successfully created: ${ARCHIVE_NAME}"
+
+      - name: "Route B: Cloud-side AES-256 Sync to MEGA Crypt Vault"
+        if: ${{ github.event.client_payload.route == 'ROUTE_CRYPT' || github.event.inputs.route == 'ROUTE_CRYPT' || (github.event.client_payload.route == '' && github.event.inputs.route == '') }}
+        run: |
+          echo "[-] Encrypting and Delivering Archive to MEGA Crypt Vault..."
+          rclone copy /tmp/crypt_blobs/ puyal_crypt:source_archives/ --buffer-size 0M --transfers 1 -v
           echo "ROUTE_B_SUCCESS=true" >> $GITHUB_ENV
 
       # =========================================================================
@@ -86,7 +92,7 @@ jobs:
       - name: "Sanitize Ephemeral Cloud Workspace"
         if: always()
         run: |
-          echo "[-] Shredding ephemeral credentials and build artifacts..."
+          echo "[-] Shredding ephemeral credentials and packaging artifacts..."
           shred -u -z ~/.config/rclone/rclone.conf || rm -f ~/.config/rclone/rclone.conf
           rm -rf /tmp/crypt_blobs app/build/outputs/apk
           echo "Ephemeral Cloud Runner Cleaned (Zero-Trace)."
