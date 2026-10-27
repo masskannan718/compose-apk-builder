@@ -18,19 +18,19 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: 🛡️ System Isolation & Secret Guard
-        run: |
-          echo "Starting Puyal Autonomous Cloud Engine..."
-          echo "Hardening environment against rate limits and stale caches."
-
       - name: ☕ Set up JDK 17 (Golden Standard)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 📱 Set up Android SDK Tools
-        uses: android-actions/setup-android@v3
+      - name: 📱 Accept Android SDK Licenses & Environment Setup
+        run: |
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: 📦 Synthesize Golden Master Android Project Structure
         run: |
@@ -68,7 +68,7 @@ jobs:
           SEOF
 
           # 3. app/build.gradle
-          cat << 'AEOF' > app/build.gradle
+          cat << AEOF > app/build.gradle
           apply plugin: 'com.android.application'
 
           android {
@@ -101,7 +101,7 @@ jobs:
           AEOF
 
           # 4. AndroidManifest.xml
-          cat << 'MEOF' > app/src/main/AndroidManifest.xml
+          cat << MEOF > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
@@ -122,7 +122,7 @@ jobs:
           MEOF
 
           # 5. Strings & Colors
-          cat << 'REOF' > app/src/main/res/values/strings.xml
+          cat << REOF > app/src/main/res/values/strings.xml
           <resources>
               <string name="app_name">${APP_NAME}</string>
           </resources>
@@ -162,7 +162,7 @@ jobs:
           }
           JEOF
 
-      - name: 🔨 Gradle Wrapper Initialization
+      - name: 🔨 Initialize Gradle Wrapper
         run: |
           gradle wrapper --gradle-version 8.2
           chmod +x gradlew
@@ -175,13 +175,14 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.PUYAL_KEYSTORE_BASE64 }}
         run: |
+          APK_UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-            zipalign -v -p 4 app/build/outputs/apk/release/app-release-unsigned.apk puyal_aligned.apk
+            zipalign -v -p 4 $APK_UNSIGNED puyal_aligned.apk
             apksigner sign --ks release.keystore --ks-pass pass:puyal2026 --out puyal_signed.apk puyal_aligned.apk
           else
             echo "Signing with debug key as fallback for immediate installation..."
-            cp app/build/outputs/apk/release/app-release-unsigned.apk puyal_signed.apk
+            cp $APK_UNSIGNED puyal_signed.apk
           fi
 
       - name: 📤 Upload Build Artifact
