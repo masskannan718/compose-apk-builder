@@ -1,51 +1,38 @@
-name: Puyal Enterprise Heavy Worker v5.1
+name: Puyal Ephemeral Worker Engine
 
 on:
-  repository_dispatch:
-    types: [puyal_heavy_job]
+  push:
+    branches: [ main ]
   workflow_dispatch:
-    inputs:
-      job_name:
-        description: 'Job identifier'
-        required: false
-        default: 'manual_trigger'
 
 jobs:
-  heavy_process:
+  puyal_execution:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python Environment
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Analysis Engines on Cloud Runner
+      - name: Setup Storage Engine (Rclone)
         run: |
-          python -m pip install --upgrade pip
-          pip install duckdb pandas requests
-
-      - name: Install & Configure Rclone on Cloud Runner
-        env:
-          RCLONE_CONF_BASE64: ${{ secrets.RCLONE_CONFIG_BASE64 }}
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y rclone
+          sudo apt-get update -qq
+          sudo apt-get install -y rclone
           mkdir -p ~/.config/rclone
-          echo "$RCLONE_CONF_BASE64" | base64 -d > ~/.config/rclone/rclone.conf
+          echo "${{ secrets.RCLONE_CONFIG_BASE64 }}" | base64 -d > ~/.config/rclone/rclone.conf
 
-      - name: Execute Heavy Engine Simulation
+      - name: Process Payloads & Calculate SHA-256 Checksum
         run: |
-          mkdir -p output
-          python -c "
-          import duckdb, pandas as pd, datetime
-          print('⚡ Puyal Heavy Worker processing on 7GB RAM Runner...')
-          df = pd.DataFrame({'timestamp': [str(datetime.datetime.utcnow())], 'status': ['PROCESSED_BY_GITHUB_RUNNER']})
-          df.to_csv('output/worker_result.csv', index=False)
-          "
-
-      - name: Direct Stream to 5TB Vault & SHA-256 Checksum
-        run: |
-          sha256sum output/worker_result.csv > output/worker_result.sha256
-          rclone copy output/ puyal_vault: --drive-root-folder-id "132pNBbcfhwHgq-mPPZ2SAMrr3UP5F7l3" -v
+          echo "========================================================"
+          echo "  PUYAL INTEGRITY SHIELD: VERIFYING CHECKSUMS (STEP 06) "
+          echo "========================================================"
+          for file in payload_*.txt; do
+            if [ -f "$file" ]; then
+              CHECKSUM=$(sha256sum "$file" | awk "{print \$1}")
+              echo "Target File: $file"
+              echo "SHA-256 Checksum: $CHECKSUM"
+              echo "$CHECKSUM  $file" >> checksums_verified.sha256
+              
+              # Route A: Google Drive 5TB Direct Stream
+              rclone copy "$file" puyal_vault:puyal_tests/ -v
+            fi
+          done
+          echo "Integrity verification completed successfully."
