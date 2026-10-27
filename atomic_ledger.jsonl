@@ -8,3 +8,4 @@
 {"block": "BLOCK_2", "steps": ["STEP_04", "STEP_05", "STEP_06"], "features": ["ROUTE_MATRIX", "FAILSAFE_STREAM_PIPE", "SECURE_SHRED_PURGE"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_3", "steps": ["STEP_07", "STEP_08", "STEP_09"], "features": ["TWOWAY_REBASE", "ZERO_FOOTPRINT_ROTATOR", "SQLITE_INDEX_BRIDGE"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_4", "steps": ["STEP_10", "STEP_11", "STEP_12"], "features": ["CHUNK_RESUMER_64M", "SENTINEL_V2_CIRCUIT_BREAKER", "TOKEN_AUTOREFRESH_HANDLER"], "status": "LOCKED_PRODUCTION"}
+{"block": "BLOCK_5", "steps": ["STEP_13", "STEP_14", "STEP_15"], "features": ["HEADLESS_POLLER", "STREAM_BROADCASTER", "MASTER_CLI_SEALED"], "status": "ALL_15_STEPS_LOCKED"}
