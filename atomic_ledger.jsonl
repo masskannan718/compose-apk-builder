@@ -12,3 +12,4 @@
 {"task_id": "PUYAL_20261027_124034", "file": "puyal_test_payload_20261027_124034.txt", "route": "ROUTE_B_MEGA_CRYPT", "checksum": "fb5ed8b5425f36dc58535b3fd8d7c82766057b93685d8dfdb337cc4981539ab6", "destination": "puyal_vault:puyal_secure_vault/", "status": "DISPATCHED"}
 {"block": "BLOCK_1_DISPATCHER", "steps": ["STEP_01", "STEP_02", "STEP_03"], "features": ["DISPATCHER_RELAY", "HMAC_SHA256_GUARD", "FAST_JWT_HANDSHAKE"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_2_MEGA_CRYPT", "steps": ["STEP_04", "STEP_05", "STEP_06"], "features": ["MEGA_NATIVE_CONNECTOR", "AES256_CRYPT_CONTAINER", "DUAL_STORAGE_HEALTH_VERIFIED"], "status": "LOCKED_PRODUCTION"}
+{"block": "BLOCK_2_ROUTE_A_CRYPT", "steps": ["STEP_04", "STEP_05", "STEP_06"], "features": ["GDRIVE_5TB_CORE", "AES256_CRYPT_CONTAINER", "LIVE_CLOUD_VERIFIED"], "status": "LOCKED_PRODUCTION"}
