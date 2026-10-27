@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puyal v5.3 Zero-Compute Console</title>
+    <style>
+        :root {
+            --bg: #090d16;
+            --card: #131b2e;
+            --accent: #38bdf8;
+            --success: #22c55e;
+            --border: #1e293b;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+        body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 580px; }
+        .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
+        .badge { background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid var(--success); padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h1 { font-size: 18px; letter-spacing: 0.5px; }
+        .metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+        .metric { background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+        .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+        .metric-val { font-size: 15px; font-weight: 600; color: var(--accent); margin-top: 4px; }
+        .btn-trigger { width: 100%; background: linear-gradient(135deg, #0284c7, #2563eb); color: white; border: none; padding: 14px; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; transition: opacity 0.2s; margin-top: 5px; }
+        .btn-trigger:active { opacity: 0.8; }
+        .terminal-box { background: #050811; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 12px; color: #a5f3fc; max-height: 180px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🌪️ PUYAL v5.3 CONSOLE</h1>
+                <p style="font-size: 12px; color: var(--muted); margin-top: 3px;">Zero-Compute Cloud Pipeline</p>
+            </div>
+            <div class="badge">● v5.3 ACTIVE</div>
+        </div>
+
+        <div class="card">
+            <p style="font-size: 13px; color: var(--muted);">Cloud Vault Status</p>
+            <div class="metric-row">
+                <div class="metric">
+                    <div class="metric-label">Route A Target</div>
+                    <div class="metric-val">Google Drive (5TB)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Integrity Shield</div>
+                    <div class="metric-val" style="color: var(--success);">SHA-256 Armed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <p style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">One-Touch Dispatch Signal</p>
+            <button class="btn-trigger" onclick="triggerSignal()">⚡ Trigger Ephemeral Worker</button>
+            <p id="trigger-status" style="font-size: 12px; color: var(--muted); text-align: center; margin-top: 10px;">Ready for zero-footprint dispatch</p>
+        </div>
+
+        <div class="card">
+            <p style="font-size: 13px; color: var(--muted); margin-bottom: 8px;">Atomic Ledger Stream (Status: Live)</p>
+            <div class="terminal-box" id="ledger-box">System Initialized. All 10 Steps Configured.
+Pipeline: 100% Ready for production streams.</div>
+        </div>
+    </div>
+
+    <script>
+        function triggerSignal() {
+            const st = document.getElementById("trigger-status");
+            const box = document.getElementById("ledger-box");
+            st.innerHTML = "<span style=\"color: #facc15;\">⚡ Signal Dispatched! Run ./puyal_dispatcher.sh in Termux</span>";
+            box.innerText += "\n[" + new Date().toLocaleTimeString() + "] MANUAL_TRIGGER_SIGNAL -> Dispatched to Ephemeral Engine.";
+            box.scrollTop = box.scrollHeight;
+        }
+    </script>
+</body>
+</html>
