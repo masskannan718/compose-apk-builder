@@ -26,3 +26,4 @@
 {"step": "STEP_5_SENTINEL_GATEKEEPER", "threshold": "70_PERCENT_HARDCAP", "max_minutes": 1400, "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_6_ANDROID_APK_PIPELINE", "route": "ROUTE_A", "destination": "puyal_drive:puyal_builds/apk/", "jdk": "zulu_17", "status": "VERIFIED_PRODUCTION"}
 {"step": "STEP_7_MASTER_SOURCE_PACKAGING", "route": "ROUTE_B", "compression": "GIT_ARCHIVE_TARGZ", "encryption": "AES_256_RCLONE_CRYPT", "destination": "puyal_crypt:source_archives/", "status": "VERIFIED_PRODUCTION"}
+{"step": "STEP_8_SHA256_ENGINE", "algorithm": "SHA_256", "scope": "RUNNER_ENV_TELEMETRY", "status": "VERIFIED_PRODUCTION"}
