@@ -20,3 +20,4 @@
 {"stage": "STAGE_2_EPHEMERAL_WORKER", "step": "STEP_2_1_WORKFLOW", "file": ".github/workflows/puyal_worker.yml", "status": "COMMITTED_PRODUCTION"}
 {"stage": "STAGE_3_TRIAGE_DISPATCH", "steps": ["STEP_3_1_SENTINEL", "STEP_3_2_CLASSIFIER", "STEP_3_3_DISPATCH"], "status": "VERIFIED_PRODUCTION"}
 {"stage": "STAGE_3_TRIAGE_DISPATCH", "steps": ["STEP_3_1_SENTINEL", "STEP_3_2_CLASSIFIER", "STEP_3_3_DISPATCH"], "status": "VERIFIED_PRODUCTION"}
+{"step": "STEP_1_WEB_UI_CONSOLE", "target": "PORT_8765", "ram_footprint": "<10MB", "status": "VERIFIED_PRODUCTION"}

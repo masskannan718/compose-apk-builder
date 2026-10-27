@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puyal v5.3 Cloud Console</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
+        .card { width: 100%; max-width: 440px; background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 16px; }
+        .title { font-size: 1.15rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+        .badge { background: #059669; color: #fff; font-size: 0.7rem; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; font-weight: bold; }
+        .section-label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
+        .route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .route-btn { background: #0f172a; border: 2px solid #334155; border-radius: 10px; padding: 12px 8px; text-align: center; color: #94a3b8; cursor: pointer; transition: 0.2s; }
+        .route-btn.active { border-color: #38bdf8; background: #0369a1; color: #fff; font-weight: bold; }
+        .route-name { font-size: 0.85rem; display: block; margin-top: 4px; }
+        .input-group { margin-bottom: 16px; }
+        .input-box { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #f8fafc; padding: 10px 12px; font-size: 0.9rem; }
+        .dispatch-btn { width: 100%; background: #0284c7; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 1rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); }
+        .dispatch-btn:active { transform: scale(0.98); background: #0369a1; }
+        .terminal { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.75rem; color: #10b981; height: 130px; overflow-y: auto; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="title">🌪️ Puyal Cloud v5.3</div>
+            <span class="badge" id="sys-status">Ready</span>
+        </div>
+
+        <div class="section-label">Select Pipeline Route</div>
+        <div class="route-grid">
+            <div class="route-btn active" id="btn-crypt" onclick="setRoute('ROUTE_CRYPT')">
+                🔐 Route B
+                <span class="route-name">MEGA Crypt Vault</span>
+            </div>
+            <div class="route-btn" id="btn-build" onclick="setRoute('ROUTE_BUILD')">
+                🏗️ Route A
+                <span class="route-name">Google Drive 5TB</span>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <div class="section-label">Target Payload / Artifact</div>
+            <input type="text" class="input-box" id="target-file" value="master_source_code.zip" placeholder="File to process">
+        </div>
+
+        <button class="dispatch-btn" onclick="triggerDispatch()">
+            ⚡ One-Touch Cloud Trigger
+        </button>
+
+        <div class="section-label" style="margin-top: 16px;">Console Live Stream</div>
+        <div class="terminal" id="term-logs">
+            [Puyal Engine]: Universal Web Console initialized.<br>
+            [Puyal Engine]: Dual Vaults (GDrive 5TB + MEGA Crypt) mapped.<br>
+            [Puyal Engine]: Awaiting one-touch trigger...
+        </div>
+    </div>
+
+    <script>
+        let currentRoute = "ROUTE_CRYPT";
+
+        function setRoute(route) {
+            currentRoute = route;
+            document.getElementById('btn-crypt').classList.toggle('active', route === 'ROUTE_CRYPT');
+            document.getElementById('btn-build').classList.toggle('active', route === 'ROUTE_BUILD');
+            log(`[Routing]: Destination switched to ${route}`);
+        }
+
+        function log(msg) {
+            const term = document.getElementById('term-logs');
+            term.innerHTML += `<br>${msg}`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function triggerDispatch() {
+            const target = document.getElementById('target-file').value;
+            log(`[Dispatch]: Emitting ${currentRoute} signal for ${target}...`);
+            document.getElementById('sys-status').innerText = "Triggering...";
+
+            fetch('/api/dispatch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ route: currentRoute, target: target })
+            })
+            .then(res => res.json())
+            .then(data => {
+                log(`[Success]: Manifest Sealed! Code: ${data.status}`);
+                log(`[Cloud Intent]: Handed off to GitHub Actions VM.`);
+                document.getElementById('sys-status').innerText = "Dispatched";
+            })
+            .catch(err => {
+                log(`[Error]: Dispatch failed - ${err}`);
+                document.getElementById('sys-status').innerText = "Failed";
+            });
+        }
+    </script>
+</body>
+</html>
