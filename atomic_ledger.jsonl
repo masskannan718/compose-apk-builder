@@ -16,3 +16,4 @@
 {"block": "BLOCK_3_TRIAGE_SENTINEL", "steps": ["STEP_07", "STEP_08", "STEP_09"], "features": ["EVENT_DISPATCHER", "SENTINEL_70PCT_GATEKEEPER", "INTENT_CLASSIFIER"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_4_STREAM_UI", "steps": ["STEP_10", "STEP_11", "STEP_12"], "features": ["SSE_STREAM_EMITTER", "TELEMETRY_DAEMON", "ONE_TOUCH_WEB_TRIGGER"], "status": "LOCKED_PRODUCTION"}
 {"block": "BLOCK_5_FINAL_SEAL", "steps": ["STEP_13", "STEP_14", "STEP_15"], "features": ["TELEGRAM_ALERT", "AUTO_SANITIZER_V2", "MASTER_15_OF_15_SEAL"], "status": "LOCKED_PRODUCTION"}
+{"stage": "STAGE_1_MEGA_CORE_CRYPT", "step": "STEP_1_3", "target": "MEGA_20GB", "encryption": "AES_256", "status": "VERIFIED_PRODUCTION"}
