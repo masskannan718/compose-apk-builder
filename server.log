@@ -1,0 +1,15 @@
+nohup: ignoring input
+INFO:     Started server process [865]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:57344 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57346 - "POST /upload-to-drive HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57354 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57356 - "POST /upload-to-drive HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57366 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57368 - "POST /upload-to-drive HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57380 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57382 - "POST /upload-to-drive HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57434 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57436 - "POST /upload-to-drive HTTP/1.1" 200 OK
